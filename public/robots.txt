@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /delivery
+Disallow: /profile
+Disallow: /orders
+Disallow: /wishlist
+Disallow: /cart
+Disallow: /invoice
+
+Sitemap: https://sketextile.vercel.app/sitemap.xml
