@@ -6,4 +6,15 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  build: {
+    chunkSizeWarningLimit: 3000,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'DYNAMIC_IMPORT') {
+          return;
+        }
+        warn(warning);
+      }
+    }
+  }
 })
