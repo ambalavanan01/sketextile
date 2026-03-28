@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Reusable function to check if the requesting user is an Admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reusable function to check if the requesting user is a Delivery Partner
+    function isDelivery() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'delivery';
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      // Basic rule: Allow if authenticated and accessing own ID
+      allow create, read, update: if request.auth != null && request.auth.uid == userId;
+      
+      // Admin override: Admins can manage all accounts
+      allow read, write: if request.auth != null && 
+                          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // 2. Products Collection (For future migration)
+    match /products/{productId} {
+      // Anyone (even guests) can browse products
+      allow read: if true;
+      // Only Admins can Add, Edit, or Delete inventory
+      allow write: if isAdmin();
+    }
+    
+    // 3. Orders Collection (For future migration)
+    match /orders/{orderId} {
+      // Customers can create and view their own orders
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, update: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Delivery Partners can view orders and update specific statuses
+      allow read: if isDelivery();
+      allow update: if isDelivery() && 
+                    (request.resource.data.status == 'delivered' || request.resource.data.status == 'in_transit');
+      
+      // Admins have full control over all orders
+      allow read, write: if isAdmin();
+    }
+  }
+}

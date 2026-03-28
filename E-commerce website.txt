@@ -1,0 +1,71 @@
+E-commerce website
+
+Authentication -> login(Admin, delivery partner, user or customer)
+		  Signup(User or customer)
+
+Customer Functionalities:
+
+Signup -> Verify email -> login
+
+For signup(Name, unique username, phone number, email id, password, address fields)
+
+After login(view product, add to cart, buy, online payment, track order, profile management, product review )
+
+Admin Functionalities:
+1. Customer details, delivery partner details
+2. Add product, view product, delete product, edit product
+3. customer order details with confirm order, refund, appoint delivery partner
+4. add delivery partner
+5. Analytics of products, profit , no of sell, highest selling product
+6. CURD Function of all fields for admin
+
+Delivery partner Functionalities:
+1. View assigned order
+2. order details like product, customer details with address
+3. profile management
+
+Pages:
+
+Product: (product name, price, stock, discount %, max 5 pictures and minimum 2 pictures, payment methods, review, description, offer deals, sizes, colors, Quantity, delivery details of consumer name, address, add to cart, Buy now, share product using link)
+
+Add Card: (List of all products with quantity, total prices, buy now)
+
+Buy: ( choose product -> click buy now -> confirm customer details, payment method, if online payment gateway, view order)
+
+Track orders/ orders: (List of all order previous and current, for specific order(order details with -> order Number, Products details, payment method, customer details, order summary, download e- invoice pdf computer generated)
+
+Profile: (CURD on {personal details link name, username, phone number, address, email, password, Add/remove profile)
+
+Login:(email or username, password)
+
+Customer care details: ( Email, phone number, store address)
+
+Technical Details:
+
+Language: React
+Database: Local Storage after first version any other database after wards
+SEO Optimization for google.
+Language: English, Tamil
+Mobile Responsive, clear navigation system, suitable for all Educated/ Non-Educated peoples.
+Full Light mode
+Clean UI
+
+Additional:
+Search, filter, discount alert
+
+
+UI:
+
+Home Screen:
+	Header: 
+		-> Side navigation bar with hamburger symbol
+		-> Logo
+		-> Search bar
+		-> Profile icon -> customer details
+		-> Orders and Cart
+	Body: 
+		1. First slider of all discount with best of all and special discounts and offers updated by the admin
+		2. Secondary: All products
+		3. Browsing History
+	Footer:
+		4. Navigation, Customer Care, Store details, Copy rights, Social links
