@@ -201,33 +201,11 @@ export const ProductProvider = ({ children }) => {
     await setDoc(doc(db, 'orders', orderId), updates, { merge: true });
   };
 
-  const uploadImage = async (file) => {
-    if (!file) return null;
-    const apiKey = 'ea8dbef4e2ed722788becbdc3392f7ef';
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    try {
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await response.json();
-      if (data.success) {
-        return data.data.url;
-      } else {
-        throw new Error(data.error.message || "Upload failed");
-      }
-    } catch (error) {
-      console.error("ImgBB Upload Error:", error);
-      throw error;
-    }
-  };
 
   return (
     <ProductContext.Provider value={{ 
       products, setProducts, cart, addToCart, removeFromCart, clearCart, getCartTotals, orders, addOrder,
-      addProduct, updateProduct, deleteProduct, updateOrder, uploadImage, addReview, loading,
+      addProduct, updateProduct, deleteProduct, updateOrder, addReview, loading,
       wishlist, toggleWishlist
     }}>
       {children}

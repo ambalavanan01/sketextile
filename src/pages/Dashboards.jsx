@@ -16,17 +16,13 @@ import {
 } from 'recharts';
 
 export const AdminDashboard = () => {
-  const { products, orders, addProduct, updateProduct, deleteProduct, setProducts, updateOrder, uploadImage } = useProduct();
+  const { products, orders, addProduct, updateProduct, deleteProduct, setProducts, updateOrder } = useProduct();
   const { user } = useAuth();
   const [tab, setTab] = useState('analytics');
   const [isAdding, setIsAdding] = useState(false);
   const [usersList, setUsersList] = useState([]);
   const [bulkDiscount, setBulkDiscount] = useState({ category: 'All', percentage: 0 });
   
-  // Media Assistant Hooks (moved to top for stability)
-  const [mediaFile, setMediaFile] = useState(null);
-  const [generatedUrl, setGeneratedUrl] = useState('');
-  const [isMediaUploading, setIsMediaUploading] = useState(false);
   
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -380,72 +376,6 @@ export const AdminDashboard = () => {
     </div>
   );
 
-  const handleMediaUpload = async () => {
-    if (!mediaFile) return;
-    setIsMediaUploading(true);
-    try {
-      const url = await uploadImage(mediaFile);
-      setGeneratedUrl(url);
-    } catch (err) {
-      alert("Media upload failed: " + err.message);
-    } finally {
-      setIsMediaUploading(false);
-    }
-  };
-
-  const renderMedia = () => (
-    <div className="glass" style={{ padding: '3rem', borderRadius: 'var(--radius)', maxWidth: '600px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Rapid Link Generator</h2>
-      <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2rem' }}>Upload any image to get a permanent direct link for your website.</p>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        <input 
-          type="file" 
-          onChange={(e) => setMediaFile(e.target.files[0])} 
-          style={{ padding: '2rem', border: '3px dashed var(--border)', borderRadius: '20px', textAlign: 'center', cursor: 'pointer' }}
-        />
-        
-        <button 
-          onClick={handleMediaUpload} 
-          disabled={!mediaFile || isMediaUploading}
-          className="premium-gradient hover-scale" 
-          style={{ padding: '1rem', borderRadius: 'var(--radius)', color: 'white', fontWeight: 800 }}
-        >
-          {isMediaUploading ? 'Generating Link...' : 'Upload & Get Link'}
-        </button>
-
-        {generatedUrl && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--bg-main)', borderRadius: '15px' }}
-          >
-            <p style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.8rem' }}>DIRECT LINK GENERATED:</p>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <input 
-                readOnly 
-                value={generatedUrl} 
-                className="glass"
-                style={{ flex: 1, padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem' }} 
-              />
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(generatedUrl);
-                  alert("Link copied to clipboard!");
-                }}
-                className="premium-gradient"
-                style={{ padding: '0.8rem', borderRadius: '8px', color: 'white' }}
-              >
-                <Copy size={20} />
-              </button>
-            </div>
-            <img src={generatedUrl} style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', marginTop: '1.5rem', borderRadius: '10px' }} />
-          </motion.div>
-        )}
-      </div>
-    </div>
-  );
-
   const renderUsers = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <h2>System Users Directory</h2>
@@ -476,13 +406,11 @@ export const AdminDashboard = () => {
         <button className={tab === 'products' ? 'premium-gradient' : ''} onClick={() => setTab('products')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'products' ? '' : 'transparent', color: tab === 'products' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>Products</button>
         <button className={tab === 'orders' ? 'premium-gradient' : ''} onClick={() => setTab('orders')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'orders' ? '' : 'transparent', color: tab === 'orders' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>User Orders</button>
         <button className={tab === 'users' ? 'premium-gradient' : ''} onClick={() => setTab('users')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'users' ? '' : 'transparent', color: tab === 'users' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>Partners/Users</button>
-        <button className={tab === 'media' ? 'premium-gradient' : ''} onClick={() => setTab('media')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'media' ? '' : 'transparent', color: tab === 'media' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>Media Helper</button>
       </div>
       {tab === 'analytics' && renderAnalytics()}
       {tab === 'products' && renderProducts()}
       {tab === 'orders' && renderOrders()}
       {tab === 'users' && renderUsers()}
-      {tab === 'media' && renderMedia()}
     </div>
   );
 };
