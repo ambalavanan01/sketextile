@@ -295,7 +295,6 @@ const Header = ({ setSidebarOpen }) => {
             <Menu size={24} />
           </div>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none' }}>
-            <img src="/logo.png" style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'contain' }} alt="SKE Logo" />
             <span style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-1.5px' }}>
               SKE <span style={{ color: 'var(--text-main)', fontWeight: 400 }}>Textiles</span>
             </span>
