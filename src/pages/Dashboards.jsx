@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { db } from '../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useProduct } from '../context/ProductContext';
 import { useAuth } from '../context/AuthContext';
 import { 
-  BarChart, Package, Users, Truck, AlertCircle, 
+  BarChart as LucideBarChart, Package, Users, Truck, AlertCircle, 
   Plus, Edit, Trash, Check, X, MapPin, 
-  TrendingUp, ShoppingCart, DollarSign 
+  TrendingUp, ShoppingCart, DollarSign, Tag, Archive, Copy
 } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, LineChart, Line 
+} from 'recharts';
 
 export const AdminDashboard = () => {
-  const { products, orders, addProduct, updateProduct, deleteProduct, setProducts, updateOrder } = useProduct();
+  const { products, orders, addProduct, updateProduct, deleteProduct, setProducts, updateOrder, uploadImage } = useProduct();
   const { user } = useAuth();
   const [tab, setTab] = useState('analytics');
   const [isAdding, setIsAdding] = useState(false);
   const [usersList, setUsersList] = useState([]);
+  const [bulkDiscount, setBulkDiscount] = useState({ category: 'All', percentage: 0 });
+  
+  // Media Assistant Hooks (moved to top for stability)
+  const [mediaFile, setMediaFile] = useState(null);
+  const [generatedUrl, setGeneratedUrl] = useState('');
+  const [isMediaUploading, setIsMediaUploading] = useState(false);
   
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -47,28 +58,148 @@ export const AdminDashboard = () => {
   const customers = usersList.filter(u => u.role === 'customer');
   const deliveryPartners = usersList.filter(u => u.role === 'delivery');
 
+  // Chart Data Preparation
+  const last30Days = [...Array(7)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toLocaleDateString();
+    const dayOrders = orders.filter(o => new Date(o.date).toLocaleDateString() === dateStr);
+    return {
+      name: d.toLocaleDateString(undefined, { weekday: 'short' }),
+      sales: dayOrders.reduce((sum, o) => sum + o.total, 0),
+      orders: dayOrders.length
+    };
+  });
+
+  const categoryData = Object.entries(
+    products.reduce((acc, p) => {
+      acc[p.category] = (acc[p.category] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value }));
+
+  const lowStockProducts = products.filter(p => p.stock < 10);
+
+  const handleBulkDiscount = async () => {
+    if (!bulkDiscount.percentage || bulkDiscount.percentage < 0) return;
+    const targets = products.filter(p => bulkDiscount.category === 'All' || p.category === bulkDiscount.category);
+    if (!window.confirm(`Apply ${bulkDiscount.percentage}% discount to ${targets.length} products?`)) return;
+    
+    for (const p of targets) {
+       await updateProduct({ ...p, discount: Number(bulkDiscount.percentage) });
+    }
+    alert('Bulk discount applied successfully!');
+  };
+
+  const COLORS = ['#7C3AED', '#FB7185', '#38BDF8', '#FBBF24', '#34D399'];
+
   const renderAnalytics = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-      <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid var(--primary)' }}>
-        <TrendingUp color="var(--primary)" size={32} />
-        <h3 style={{ margin: '1rem 0' }}>{totalSales} Total Sales</h3>
-        <p style={{ color: 'var(--text-muted)' }}>Orders confirmed this month</p>
-      </div>
-      <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid #48BB78' }}>
-        <DollarSign color="#48BB78" size={32} />
-        <h3 style={{ margin: '1rem 0' }}>₹{Math.floor(totalProfit)} Profit</h3>
-        <p style={{ color: 'var(--text-muted)' }}>Estimated earnings</p>
-      </div>
-      <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid var(--accent)' }}>
-        <Package color="var(--accent)" size={32} />
-        <h3 style={{ margin: '1rem 0' }}>Highest Selling</h3>
-        <p style={{ color: 'var(--text-muted)' }}>{topProduct?.name || 'Loading...'}</p>
-      </div>
-      <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid #ED8936' }}>
-        <Users color="#ED8936" size={32} />
-        <h3 style={{ margin: '1rem 0' }}>{customers.length} Customers</h3>
-        <p style={{ color: 'var(--text-muted)' }}>Active platform users</p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+        {/* Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
+            <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid var(--primary)' }}>
+                <TrendingUp color="var(--primary)" size={32} />
+                <h3 style={{ margin: '1rem 0' }}>{totalSales} Total Sales</h3>
+                <p style={{ color: 'var(--text-muted)' }}>Orders confirmed this month</p>
+            </div>
+            <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid #48BB78' }}>
+                <DollarSign color="#48BB78" size={32} />
+                <h3 style={{ margin: '1rem 0' }}>₹{Math.floor(totalProfit)} Profit</h3>
+                <p style={{ color: 'var(--text-muted)' }}>Estimated earnings</p>
+            </div>
+            <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid var(--accent)' }}>
+                <Package color="var(--accent)" size={32} />
+                <h3 style={{ margin: '1rem 0' }}>Highest Selling</h3>
+                <p style={{ color: 'var(--text-muted)' }}>{topProduct?.name || 'Loading...'}</p>
+            </div>
+            <div className="glass hover-scale" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderBottom: '5px solid #ED8936' }}>
+                <Users color="#ED8936" size={32} />
+                <h3 style={{ margin: '1rem 0' }}>{customers.length} Customers</h3>
+                <p style={{ color: 'var(--text-muted)' }}>Active platform users</p>
+            </div>
+        </div>
+
+        {/* Charts Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
+            <div className="glass" style={{ padding: '2.5rem', borderRadius: 'var(--radius)', height: '400px' }}>
+                <h3 style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}><DollarSign size={20} color="var(--primary)" /> Revenue Analytics</h3>
+                <ResponsiveContainer width="100%" height="80%">
+                    <BarChart data={last30Days}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                        <YAxis axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                        <Bar dataKey="sales" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+            <div className="glass" style={{ padding: '2.5rem', borderRadius: 'var(--radius)', height: '400px' }}>
+                <h3 style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}><Package size={20} color="var(--primary)" /> Inventory Distribution</h3>
+                <ResponsiveContainer width="100%" height="80%">
+                    <PieChart>
+                        <Pie data={categoryData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                            {categoryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip />
+                    </PieChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+
+        {/* Inventory Management Tools Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
+            {/* Low Stock Alerts */}
+            <div className="glass" style={{ padding: '2.5rem', borderRadius: 'var(--radius)' }}>
+                <h3 style={{ marginBottom: '1.5rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.8rem' }}><AlertCircle size={22} /> Critical Stock Alerts</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {lowStockProducts.length === 0 ? (
+                        <p style={{ color: 'var(--text-muted)' }}>All items are sufficiently stocked.</p>
+                    ) : (
+                        lowStockProducts.map(p => (
+                            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#FFF5F5', borderRadius: '15px', border: '1px solid #FED7D7' }}>
+                                <div>
+                                    <p style={{ fontWeight: 800, fontSize: '0.9rem' }}>{p.name}</p>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--accent)' }}>Only {p.stock} units remaining</p>
+                                </div>
+                                <button onClick={() => setTab('products')} style={{ background: 'white', padding: '0.5rem 1rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 800, border: '1px solid #FED7D7' }}>Restock</button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* Bulk Discount Tool */}
+            <div className="glass" style={{ padding: '2.5rem', borderRadius: 'var(--radius)' }}>
+                <h3 style={{ marginBottom: '1.5rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.8rem' }}><Tag size={22} /> Bulk Discount Manager</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                    <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Target Category</label>
+                        <select 
+                            value={bulkDiscount.category} 
+                            onChange={e => setBulkDiscount({ ...bulkDiscount, category: e.target.value })}
+                            style={{ width: '100%', padding: '0.8rem', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '0.5rem' }}
+                        >
+                            <option value="All">All Categories</option>
+                            {[...new Set(products.map(p => p.category))].map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Discount Percentage (%)</label>
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                            <input 
+                                type="number" 
+                                value={bulkDiscount.percentage} 
+                                onChange={e => setBulkDiscount({ ...bulkDiscount, percentage: e.target.value })}
+                                style={{ flex: 1, padding: '0.8rem', borderRadius: '12px', border: '1px solid var(--border)' }}
+                            />
+                            <button onClick={handleBulkDiscount} className="premium-gradient" style={{ padding: '0.8rem 2rem', borderRadius: '12px', color: 'white', fontWeight: 800 }}>Apply</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
   );
 
@@ -103,26 +234,34 @@ export const AdminDashboard = () => {
     window.scrollTo({ top: 300, behavior: 'smooth' });
   };
 
+  const [isUploading, setIsUploading] = useState(false);
+
   const handleProductSubmit = async (e) => {
     e.preventDefault();
-    const imgs = productForm.imagesStr.split(',').map(s => s.trim()).filter(Boolean);
-    if(imgs.length < 2 || imgs.length > 5) {
-      alert("Please provide exactly between 2 and 5 valid image links, separated by commas.");
-      return;
-    }
-    const finalProduct = {
-      name: productForm.name,
-      price: Number(productForm.price),
-      stock: Number(productForm.stock),
-      discount: Number(productForm.discount),
-      category: productForm.category || 'General',
-      description: productForm.description,
-      images: imgs,
-      sizes: productForm.sizesStr ? productForm.sizesStr.split(',').map(s=>s.trim()) : ["One Size"],
-      colors: productForm.colorsStr ? productForm.colorsStr.split(',').map(s=>s.trim()) : ["Default"],
-      ratings: isEditing ? (products.find(p=>p.id===productForm.id)?.ratings || []) : []
-    };
+    setIsUploading(true);
+
     try {
+      let finalImages = productForm.imagesStr.split(',').map(s => s.trim()).filter(Boolean);
+
+      if(finalImages.length < 1) {
+        alert("Please provide at least one image link.");
+        setIsUploading(false);
+        return;
+      }
+
+      const finalProduct = {
+        name: productForm.name,
+        price: Number(productForm.price),
+        stock: Number(productForm.stock),
+        discount: Number(productForm.discount),
+        category: productForm.category || 'General',
+        description: productForm.description,
+        images: finalImages,
+        sizes: productForm.sizesStr ? productForm.sizesStr.split(',').map(s=>s.trim()) : ["One Size"],
+        colors: productForm.colorsStr ? productForm.colorsStr.split(',').map(s=>s.trim()) : ["Default"],
+        ratings: isEditing ? (products.find(p=>p.id===productForm.id)?.ratings || []) : []
+      };
+
       if (isEditing) {
         finalProduct.id = productForm.id;
         await updateProduct(finalProduct);
@@ -136,6 +275,8 @@ export const AdminDashboard = () => {
       setProductForm({ id: null, name: '', price: '', stock: '', discount: '0', category: '', description: '', imagesStr: '', sizesStr: '', colorsStr: '' });
     } catch(err) {
       alert("Error saving product: " + err.message);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -160,13 +301,13 @@ export const AdminDashboard = () => {
             <div><label>Price (₹) *</label><input required type="number" value={productForm.price} onChange={e=>setProductForm({...productForm, price: e.target.value})} style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
             <div><label>Stock Quantity *</label><input required type="number" value={productForm.stock} onChange={e=>setProductForm({...productForm, stock: e.target.value})} style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
             <div><label>Discount %</label><input type="number" value={productForm.discount} onChange={e=>setProductForm({...productForm, discount: e.target.value})} style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
-            <div><label>Image URLs * (Min 2, Max 5, comma separated)</label><input required value={productForm.imagesStr} onChange={e=>setProductForm({...productForm, imagesStr: e.target.value})} placeholder="https://img1.jpg, https://img2.jpg" style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
+            <div><label>Image URLs (comma separated) *</label><input required value={productForm.imagesStr} onChange={e=>setProductForm({...productForm, imagesStr: e.target.value})} placeholder="https://img1.jpg, https://img2.jpg" style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
             <div><label>Available Sizes (comma separated)</label><input value={productForm.sizesStr} onChange={e=>setProductForm({...productForm, sizesStr: e.target.value})} placeholder="S, M, L, XL" style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
             <div><label>Available Colors (comma separated)</label><input value={productForm.colorsStr} onChange={e=>setProductForm({...productForm, colorsStr: e.target.value})} placeholder="Black, White, Blue" style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem' }}/></div>
             <div style={{ gridColumn: '1 / -1' }}><label>Product Description *</label><textarea required value={productForm.description} onChange={e=>setProductForm({...productForm, description: e.target.value})} style={{ width: '100%', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginTop:'0.5rem', height:'80px' }}/></div>
           </div>
-          <button type="submit" className="premium-gradient hover-scale" style={{ padding: '1rem 2rem', borderRadius: 'var(--radius)', color: 'white', fontWeight: 700, marginTop: '2rem' }}>
-            {isEditing ? 'Save Changes' : 'Publish to Store'}
+          <button type="submit" disabled={isUploading} className="premium-gradient hover-scale" style={{ padding: '1rem 2rem', borderRadius: 'var(--radius)', color: 'white', fontWeight: 700, marginTop: '2rem' }}>
+            {isUploading ? 'Saving...' : (isEditing ? 'Save Changes' : 'Publish to Store')}
           </button>
         </form>
       )}
@@ -239,6 +380,72 @@ export const AdminDashboard = () => {
     </div>
   );
 
+  const handleMediaUpload = async () => {
+    if (!mediaFile) return;
+    setIsMediaUploading(true);
+    try {
+      const url = await uploadImage(mediaFile);
+      setGeneratedUrl(url);
+    } catch (err) {
+      alert("Media upload failed: " + err.message);
+    } finally {
+      setIsMediaUploading(false);
+    }
+  };
+
+  const renderMedia = () => (
+    <div className="glass" style={{ padding: '3rem', borderRadius: 'var(--radius)', maxWidth: '600px', margin: '0 auto' }}>
+      <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Rapid Link Generator</h2>
+      <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '2rem' }}>Upload any image to get a permanent direct link for your website.</p>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <input 
+          type="file" 
+          onChange={(e) => setMediaFile(e.target.files[0])} 
+          style={{ padding: '2rem', border: '3px dashed var(--border)', borderRadius: '20px', textAlign: 'center', cursor: 'pointer' }}
+        />
+        
+        <button 
+          onClick={handleMediaUpload} 
+          disabled={!mediaFile || isMediaUploading}
+          className="premium-gradient hover-scale" 
+          style={{ padding: '1rem', borderRadius: 'var(--radius)', color: 'white', fontWeight: 800 }}
+        >
+          {isMediaUploading ? 'Generating Link...' : 'Upload & Get Link'}
+        </button>
+
+        {generatedUrl && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--bg-main)', borderRadius: '15px' }}
+          >
+            <p style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.8rem' }}>DIRECT LINK GENERATED:</p>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <input 
+                readOnly 
+                value={generatedUrl} 
+                className="glass"
+                style={{ flex: 1, padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem' }} 
+              />
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedUrl);
+                  alert("Link copied to clipboard!");
+                }}
+                className="premium-gradient"
+                style={{ padding: '0.8rem', borderRadius: '8px', color: 'white' }}
+              >
+                <Copy size={20} />
+              </button>
+            </div>
+            <img src={generatedUrl} style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', marginTop: '1.5rem', borderRadius: '10px' }} />
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+
   const renderUsers = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <h2>System Users Directory</h2>
@@ -269,11 +476,13 @@ export const AdminDashboard = () => {
         <button className={tab === 'products' ? 'premium-gradient' : ''} onClick={() => setTab('products')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'products' ? '' : 'transparent', color: tab === 'products' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>Products</button>
         <button className={tab === 'orders' ? 'premium-gradient' : ''} onClick={() => setTab('orders')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'orders' ? '' : 'transparent', color: tab === 'orders' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>User Orders</button>
         <button className={tab === 'users' ? 'premium-gradient' : ''} onClick={() => setTab('users')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'users' ? '' : 'transparent', color: tab === 'users' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>Partners/Users</button>
+        <button className={tab === 'media' ? 'premium-gradient' : ''} onClick={() => setTab('media')} style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'media' ? '' : 'transparent', color: tab === 'media' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}>Media Helper</button>
       </div>
       {tab === 'analytics' && renderAnalytics()}
       {tab === 'products' && renderProducts()}
       {tab === 'orders' && renderOrders()}
       {tab === 'users' && renderUsers()}
+      {tab === 'media' && renderMedia()}
     </div>
   );
 };
@@ -281,43 +490,77 @@ export const AdminDashboard = () => {
 export const DeliveryDashboard = () => {
   const { orders, updateOrder } = useProduct();
   const { user } = useAuth();
-  // Viewing confirmed or out-for-delivery orders assigned to this delivery partner
-  const assignedOrders = orders.filter(o => 
-    o.deliveryPartnerId === user?.uid && 
-    (o.status === 'confirmed' || o.status === 'in_transit')
-  );
+  const [tab, setTab] = useState('active');
+
+  const assignedOrders = orders.filter(o => o.deliveryPartnerId === user?.uid);
+  const activeOrders = assignedOrders.filter(o => o.status === 'confirmed' || o.status === 'in_transit');
+  const historyOrders = assignedOrders.filter(o => o.status === 'delivered');
 
   return (
     <div className="container" style={{ padding: '4rem 0' }}>
-      <h1 style={{ marginBottom: '2rem' }}>Delivery Tasks</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: '2rem', gap: '1rem' }}>
+        <h1 style={{ margin: 0 }}>Delivery Tasks</h1>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+            <span style={{ padding: '0.8rem 1.5rem', background: 'var(--bg-main)', borderRadius: '15px', fontWeight: 800, border: '1px solid var(--border)' }}>
+                Total Delivered: {historyOrders.length}
+            </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+        <button 
+          className={tab === 'active' ? 'premium-gradient' : ''} 
+          onClick={() => setTab('active')} 
+          style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'active' ? '' : 'transparent', color: tab === 'active' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}
+        >
+          Active Tasks ({activeOrders.length})
+        </button>
+        <button 
+          className={tab === 'history' ? 'premium-gradient' : ''} 
+          onClick={() => setTab('history')} 
+          style={{ padding: '0.8rem 1.5rem', borderRadius: 'var(--radius)', background: tab === 'history' ? '' : 'transparent', color: tab === 'history' ? 'white' : 'var(--text-muted)', fontWeight: 700 }}
+        >
+          Delivery History ({historyOrders.length})
+        </button>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        {assignedOrders.map(order => (
-          <div key={order.id} className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderLeft: '8px solid var(--secondary)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {tab === 'active' && activeOrders.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No active deliveries assigned right now. You are all caught up!</p>}
+        {tab === 'history' && historyOrders.length === 0 && <p style={{ color: 'var(--text-muted)' }}>You haven't completed any deliveries yet. Map out your next route!</p>}
+        
+        {(tab === 'active' ? activeOrders : historyOrders).map(order => (
+          <div key={order.id} className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius)', borderLeft: `8px solid ${tab === 'active' ? 'var(--secondary)' : '#48BB78'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
               <div>
-                <h3>Order #{order.orderNumber}</h3>
+                <h3>Order #{order.orderNumber || order.id.slice(0, 8)}</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
                   <MapPin size={20} color="var(--accent)" />
                   <div>
-                    <p><strong>{order.customerDetails.username}</strong></p>
-                    <p style={{ color: 'var(--text-muted)' }}>{order.customerDetails.address}</p>
-                    <p style={{ fontSize: '0.85rem' }}>Phone: {order.customerDetails.phone || '987 654 43210'}</p>
+                    <p><strong>{order.customerDetails?.username || 'Guest Customer'}</strong></p>
+                    <p style={{ color: 'var(--text-muted)' }}>{order.customerDetails?.address || 'N/A'}</p>
+                    <p style={{ fontSize: '0.85rem' }}>Phone: {order.customerDetails?.phone || '987 654 43210'}</p>
                   </div>
                 </div>
               </div>
-              <div>
-                <button 
-                  onClick={() => updateOrder(order.id, { status: 'delivered' })}
-                  className="premium-gradient hover-scale" 
-                  style={{ padding: '1rem 2rem', borderRadius: 'var(--radius)', color: 'white', fontWeight: 800 }}
-                >
-                  Mark as Delivered
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
+                {tab === 'active' ? (
+                  <button 
+                    onClick={() => updateOrder(order.id, { status: 'delivered' })}
+                    className="premium-gradient hover-scale" 
+                    style={{ padding: '1rem 2rem', borderRadius: 'var(--radius)', color: 'white', fontWeight: 800 }}
+                  >
+                    Mark as Delivered
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#48BB78', fontWeight: 800, background: '#F0FFF4', padding: '0.8rem 1.5rem', borderRadius: '15px' }}>
+                    <Check size={20} /> Successfully Delivered
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--bg-main)', borderRadius: 'var(--radius)' }}>
               <strong>Items to deliver:</strong>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
                 {order.products.map(p => <span key={p.id} style={{ fontSize: '0.85rem', background: 'white', padding: '0.5rem 1rem', borderRadius: '20px', border: '1px solid var(--border)' }}>{p.name} (x{p.quantity})</span>)}
               </div>
             </div>

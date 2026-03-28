@@ -147,9 +147,9 @@ const generateSKEInvoice = (order) => {
   doc.setFontSize(8);
   doc.setTextColor(138, 158, 196);
   doc.text('TEXTILES & READYMADES', 15, 28);
-  doc.text('No. 12, Anna Salai, Chennai — 600 002', 15, 34);
-  doc.text('GSTIN: 33AADCS9999Q1ZX  |  Tel: +91 98400 00000', 15, 39);
-  doc.text('support@skeshop.in', 15, 44);
+  doc.text('Thiruvalam, Vellore, TN - 632515', 15, 34);
+  doc.text('GSTIN: 33AADCS9999Q1ZX  |  Tel: +91 9629218964', 15, 39);
+  doc.text('sketestilesreadymades@gmail.com', 15, 44);
 
   // Invoice title
   doc.setFont('times', 'italic');
@@ -344,9 +344,9 @@ const InvoiceView = ({ order }) => {
           <div className="inv-brand-name">SKE</div>
           <div className="inv-brand-tagline">Textiles &amp; Readymades</div>
           <div className="inv-brand-info">
-            No. 12, Anna Salai, Chennai — 600 002<br />
+            Thiruvalam, Vellore, Tamil Nadu — 632515<br />
             GSTIN: 33AADCS9999Q1ZX<br />
-            support@skeshop.in · +91 98400 00000
+            sketestilesreadymades@gmail.com · +91 9629218964
           </div>
         </div>
         <div className="inv-title-block">
@@ -481,7 +481,7 @@ const InvoiceView = ({ order }) => {
         <div className="inv-footer-note">
           All prices inclusive of applicable taxes.<br />
           Returns accepted within 7 days with original packaging.<br />
-          For support: support@skeshop.in · +91 98400 00000
+          Support: sketestilesreadymades@gmail.com · +91 9629218964
         </div>
         <div className="inv-footer-brand">SKE Textiles &amp; Readymades</div>
       </div>

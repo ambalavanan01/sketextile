@@ -61,6 +61,16 @@ export const ProductProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Wishlist State
+  const [wishlist, setWishlist] = useState(() => {
+    const saved = localStorage.getItem('ske_wishlist');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ske_wishlist', JSON.stringify(wishlist));
+  }, [wishlist]);
 
   // Keep cart in localStorage for transient guest persistence
   const [cart, setCart] = useState(() => {
@@ -128,6 +138,14 @@ export const ProductProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
+  const toggleWishlist = (product) => {
+    setWishlist(prev => {
+      const isExist = prev.find(p => p.id === product.id);
+      if (isExist) return prev.filter(p => p.id !== product.id);
+      return [...prev, product];
+    });
+  };
+
   // Centralized Cart Calculations
   const getCartTotals = () => {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * (1 - (item.discount || 0) / 100)) * item.quantity, 0);
@@ -148,6 +166,16 @@ export const ProductProvider = ({ children }) => {
   // Firestore Write Operations
   const addOrder = async (order) => {
     try {
+      // Automated Stock Reduction
+      for (const item of order.products) {
+        const productRef = doc(db, 'products', item.id);
+        const product = products.find(p => p.id === item.id);
+        if (product) {
+          const newStock = Math.max(0, (product.stock || 0) - item.quantity);
+          await setDoc(productRef, { stock: newStock }, { merge: true });
+        }
+      }
+
       await setDoc(doc(db, 'orders', order.id), order);
       clearCart();
     } catch (error) {
@@ -173,10 +201,34 @@ export const ProductProvider = ({ children }) => {
     await setDoc(doc(db, 'orders', orderId), updates, { merge: true });
   };
 
+  const uploadImage = async (file) => {
+    if (!file) return null;
+    const apiKey = 'ea8dbef4e2ed722788becbdc3392f7ef';
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        return data.data.url;
+      } else {
+        throw new Error(data.error.message || "Upload failed");
+      }
+    } catch (error) {
+      console.error("ImgBB Upload Error:", error);
+      throw error;
+    }
+  };
+
   return (
     <ProductContext.Provider value={{ 
       products, setProducts, cart, addToCart, removeFromCart, clearCart, getCartTotals, orders, addOrder,
-      addProduct, updateProduct, deleteProduct, updateOrder, addReview, loading
+      addProduct, updateProduct, deleteProduct, updateOrder, uploadImage, addReview, loading,
+      wishlist, toggleWishlist
     }}>
       {children}
     </ProductContext.Provider>

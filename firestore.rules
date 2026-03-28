@@ -25,12 +25,14 @@ service cloud.firestore {
                           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // 2. Products Collection (For future migration)
+    // 2. Products Collection
     match /products/{productId} {
       // Anyone (even guests) can browse products
       allow read: if true;
-      // Only Admins can Add, Edit, or Delete inventory
-      allow write: if isAdmin();
+      // Only Admins can create or delete inventory
+      allow create, delete: if isAdmin();
+      // Admins have full access; Customers can only update the 'stock' field (for orders)
+      allow update: if isAdmin() || (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']));
     }
     
     // 3. Orders Collection (For future migration)

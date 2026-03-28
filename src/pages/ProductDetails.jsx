@@ -5,8 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { 
   Star, ShoppingCart, CreditCard, Share2, 
   MapPin, Truck, ShieldCheck, ArrowLeft,
-  ChevronRight, ChevronLeft, Minus, Plus
+  ChevronRight, ChevronLeft, Minus, Plus, Ruler
 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import SizeGuideModal from '../components/SizeGuideModal';
+import { Link } from 'react-router-dom';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -18,6 +21,8 @@ const ProductDetails = () => {
   const [qty, setQty] = useState(1);
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || '');
   const [selectedColor, setSelectedColor] = useState(product?.colors?.[0] || '');
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0, show: false });
 
   // Review State
   const [reviewInput, setReviewInput] = useState({ rating: 5, comment: '' });
@@ -62,8 +67,26 @@ const ProductDetails = () => {
     setIsSubmittingReview(false);
   };
 
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.pageX - left - window.scrollX) / width) * 100;
+    const y = ((e.pageY - top - window.scrollY) / height) * 100;
+    setZoomPos({ x, y, show: true });
+  };
+
+  const relatedProducts = products
+    .filter(p => p.category === product.category && p.id !== product.id)
+    .slice(0, 4);
+
   return (
     <div className="container" style={{ padding: '2rem 0' }}>
+      <Helmet>
+        <title>{product.name} | SKE Textiles</title>
+        <meta name="description" content={product.description} />
+      </Helmet>
+      
+      <SizeGuideModal isOpen={showSizeGuide} onClose={() => setShowSizeGuide(false)} category={product.category} />
+
       <button onClick={() => navigate(-1)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', background: 'transparent' }}>
         <ArrowLeft size={20} /> Back
       </button>
@@ -71,8 +94,20 @@ const ProductDetails = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
         {/* Gallery */}
         <div style={{ position: 'relative' }}>
-          <div style={{ width: '100%', height: '450px', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: 'var(--shadow)', background: 'white' }}>
-            <img src={product.images[activeImg]} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1560393464-5c69a73c5770?auto=format&fit=crop&w=800&q=80'; e.target.style.opacity = '0.5'; }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div 
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setZoomPos({ ...zoomPos, show: false })}
+            style={{ width: '100%', height: '450px', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: 'var(--shadow)', background: 'white', cursor: 'zoom-in', position: 'relative' }}
+          >
+            <img 
+               src={product.images[activeImg]} 
+               style={{ 
+                 width: '100%', height: '100%', objectFit: 'cover',
+                 transform: zoomPos.show ? `scale(2) translate(${-zoomPos.x/2+25}%, ${-zoomPos.y/2+25}%)` : 'scale(1)',
+                 transformOrigin: 'center',
+                 transition: zoomPos.show ? 'none' : 'transform 0.3s ease'
+               }} 
+            />
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
             {product.images.map((img, idx) => (
@@ -109,20 +144,28 @@ const ProductDetails = () => {
           <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>{product.description}</p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600, width: '60px' }}>Size:</span>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {product.sizes.map(s => (
-                  <button 
-                    key={s} onClick={() => setSelectedSize(s)}
-                    style={{ 
-                      padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)',
-                      background: selectedSize === s ? 'var(--primary)' : 'white',
-                      color: selectedSize === s ? 'white' : 'var(--text-main)'
-                    }}
-                  >{s}</button>
-                ))}
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, width: '60px' }}>Size:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {product.sizes.map(s => (
+                    <button 
+                        key={s} onClick={() => setSelectedSize(s)}
+                        style={{ 
+                        padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)',
+                        background: selectedSize === s ? 'var(--primary)' : 'white',
+                        color: selectedSize === s ? 'white' : 'var(--text-main)'
+                        }}
+                    >{s}</button>
+                    ))}
+                </div>
               </div>
+              <button 
+                onClick={() => setShowSizeGuide(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontWeight: 700, fontSize: '0.85rem', background: 'transparent' }}
+              >
+                <Ruler size={16} /> Size Guide
+              </button>
             </div>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <span style={{ fontWeight: 600, width: '60px' }}>Color:</span>
@@ -178,6 +221,21 @@ const ProductDetails = () => {
           </div>
         </div>
       </div>
+
+      {relatedProducts.length > 0 && (
+        <div style={{ marginTop: '6rem' }}>
+            <h2 style={{ fontSize: '2rem', marginBottom: '2.5rem' }}>You May Also Like</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '2rem' }}>
+                {relatedProducts.map(p => (
+                    <Link to={`/product/${p.id}`} key={p.id} className="glass" style={{ padding: '1rem', borderRadius: '24px', textDecoration: 'none', color: 'inherit' }}>
+                        <img src={p.images[0]} style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '18px' }} />
+                        <h4 style={{ marginTop: '1rem', fontSize: '1rem' }}>{p.name}</h4>
+                        <p style={{ color: 'var(--primary)', fontWeight: 800, marginTop: '0.5rem' }}>₹{p.price}</p>
+                    </Link>
+                ))}
+            </div>
+        </div>
+      )}
 
       {/* Description & Reviews */}
       <div style={{ marginTop: '4rem', padding: '2rem', background: 'white', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>

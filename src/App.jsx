@@ -9,6 +9,20 @@ import { useAuth, AuthProvider } from './context/AuthContext';
 import { useProduct, ProductProvider } from './context/ProductContext';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Custom Social Icons since some may be missing in legacy lucide
+const FacebookIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+);
+const InstagramIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
+);
+const TwitterIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
+);
+const LinkedinIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
+);
 import './i18n';
 
 // Pages
@@ -17,6 +31,11 @@ import ProductDetails from './pages/ProductDetails';
 import { CartPage, CheckoutPage, OrdersPage } from './pages/CheckoutFlow';
 import { AdminDashboard, DeliveryDashboard, ProfilePage } from './pages/Dashboards';
 import InvoicePage from './pages/InvoicePage';
+import WishlistPage from './pages/WishlistPage';
+
+// Components
+import { ProductCardSkeleton } from './components/Skeleton';
+import QuickViewModal from './components/QuickViewModal';
 
 const HeroSlider = () => {
   const slides = [
@@ -65,7 +84,7 @@ const HeroSlider = () => {
 };
 
 const HomePage = () => {
-  const { products } = useProduct();
+  const { products, loading } = useProduct();
   const { t } = useTranslation();
   const { user, updateUserProfile } = useAuth();
   const { search } = useLocation();
@@ -104,9 +123,13 @@ const HomePage = () => {
           <Link to="/" style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>VIEW ALL PIECES <ChevronRight size={16} /></Link>
         </div>
         <div className="grid-products">
-          {products.slice(0, 4).map((p, i) => (
-            <ProductCard key={p.id} p={p} i={i} history={history} setHistory={setHistory} />
-          ))}
+          {loading ? (
+             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Refreshing our latest treasures...</div>
+          ) : (
+            products.slice(0, 4).map((p, i) => (
+              <ProductCard key={p.id} p={p} i={i} history={history} setHistory={setHistory} />
+            ))
+          )}
         </div>
       </section>
 
@@ -128,9 +151,13 @@ const HomePage = () => {
           ))}
         </div>
         <div className="grid-products">
-          {filteredProducts.map((p, i) => (
-            <ProductCard key={p.id} p={p} i={i} history={history} setHistory={setHistory} />
-          ))}
+          {loading ? (
+            null
+          ) : (
+            filteredProducts.map((p, i) => (
+              <ProductCard key={p.id} p={p} i={i} history={history} setHistory={setHistory} />
+            ))
+          )}
         </div>
       </section>
 
@@ -157,23 +184,35 @@ const HomePage = () => {
 
 const ProductCard = ({ p, i, history, setHistory }) => {
   const { user, updateUserProfile } = useAuth();
+  const { wishlist, toggleWishlist } = useProduct();
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const isWished = wishlist.find(item => item.id === p.id);
+
   return (
+    <>
+    <QuickViewModal product={p} isOpen={isQuickViewOpen} onClose={() => setIsQuickViewOpen(false)} />
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
+
       transition={{ duration: 0.5, delay: i * 0.05 }}
     >
-      <Link to={`/product/${p.id}`} onClick={() => {
-        const newHist = [p, ...history.filter(h => h.id !== p.id)].slice(0, 5);
-        setHistory(newHist);
-        if (user && updateUserProfile) updateUserProfile({ history: newHist });
-        else localStorage.setItem('ske_history', JSON.stringify(newHist));
-      }} className="glass hover-scale" style={{ padding: '1.2rem', borderRadius: '32px', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', border: '1px solid rgba(124, 58, 237, 0.05)' }}>
-        <div style={{ height: '240px', overflow: 'hidden', borderRadius: '24px' }}>
-          <img src={p.images[0]} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.8s cubic-bezier(0.19, 1, 0.22, 1)' }} className="card-img" />
-        </div>
+      <div className="glass hover-scale product-card" style={{ padding: '1.2rem', borderRadius: '32px', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', border: '1px solid rgba(124, 58, 237, 0.05)' }}>
+        <Link to={`/product/${p.id}`} onClick={() => {
+          const newHist = [p, ...history.filter(h => h.id !== p.id)].slice(0, 5);
+          setHistory(newHist);
+          if (user && updateUserProfile) updateUserProfile({ history: newHist });
+          else localStorage.setItem('ske_history', JSON.stringify(newHist));
+        }} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div style={{ height: '240px', overflow: 'hidden', borderRadius: '24px', position: 'relative' }}>
+            <img src={p.images[0]} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.8s cubic-bezier(0.19, 1, 0.22, 1)' }} className="card-img" />
+            <div className="quick-view-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.3s' }}>
+                <button onClick={(e) => { e.preventDefault(); setIsQuickViewOpen(true); }} className="premium-gradient" style={{ padding: '0.8rem 1.5rem', borderRadius: '50px', color: 'white', fontWeight: 800, fontSize: '0.8rem', border: 'none' }}>QUICK VIEW</button>
+            </div>
+          </div>
+        </Link>
         <div style={{ marginTop: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '1px' }}>{p.category.toUpperCase()}</span>
@@ -188,12 +227,28 @@ const ProductCard = ({ p, i, history, setHistory }) => {
                <p style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--text-main)' }}>₹{Math.floor(p.price * (1 - (p.discount || 0)/100))}</p>
                {p.discount > 0 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>₹{p.price}</span>}
             </div>
-            <button className="premium-gradient" style={{ width: '44px', height: '44px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px -5px rgba(124, 58, 237, 0.3)' }}><Plus size={20} color="white" /></button>
+            <button 
+              onClick={() => setIsQuickViewOpen(true)}
+              className="premium-gradient" 
+              style={{ width: '44px', height: '44px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px -5px rgba(124, 58, 237, 0.3)' }}
+            >
+              <Plus size={20} color="white" />
+            </button>
           </div>
         </div>
-        {p.discount >= 10 && <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', background: 'white', color: 'var(--primary)', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 900, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>-{p.discount}%</div>}
-      </Link>
+        
+        {/* Wishlist Heart */}
+        <button 
+          onClick={(e) => { e.preventDefault(); toggleWishlist(p); }}
+          style={{ position: 'absolute', top: '1.8rem', right: '1.8rem', background: 'white', border: 'none', padding: '0.6rem', borderRadius: '50%', display: 'flex', boxShadow: '0 8px 15px rgba(0,0,0,0.1)', cursor: 'pointer', zIndex: 5 }}
+        >
+          <Heart size={18} fill={isWished ? 'var(--accent)' : 'none'} color={isWished ? 'var(--accent)' : 'var(--text-muted)'} />
+        </button>
+
+        {p.discount >= 10 && <div style={{ position: 'absolute', top: '230px', left: '1.5rem', background: 'white', color: 'var(--primary)', padding: '0.4rem 0.8rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 900, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>-{p.discount}%</div>}
+      </div>
     </motion.div>
+    </>
   );
 };
 
@@ -239,8 +294,11 @@ const Header = ({ setSidebarOpen }) => {
           <div style={{ cursor: 'pointer', color: 'var(--text-main)', display: 'flex' }} onClick={() => setSidebarOpen(true)}>
             <Menu size={24} />
           </div>
-          <Link to="/" style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-1.5px', textDecoration: 'none' }}>
-            SKE <span style={{ color: 'var(--text-main)', fontWeight: 400 }}>Textiles</span>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', textDecoration: 'none' }}>
+            <img src="/logo.png" style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'contain' }} alt="SKE Logo" />
+            <span style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-1.5px' }}>
+              SKE <span style={{ color: 'var(--text-main)', fontWeight: 400 }}>Textiles</span>
+            </span>
           </Link>
         </div>
 
@@ -263,10 +321,14 @@ const Header = ({ setSidebarOpen }) => {
           </div>
         </div>
 
-        {/* Right: Orders, Profile, Cart */}
+        {/* Right: Orders, Wishlist, Profile, Cart */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem' }}>
           <Link to="/orders" title="My Orders" style={{ color: 'var(--text-main)', position: 'relative', display: 'flex' }}>
             <Package size={22} />
+          </Link>
+
+          <Link to="/wishlist" title="My Wishlist" style={{ color: 'var(--text-main)', position: 'relative', display: 'flex' }}>
+            <Heart size={22} />
           </Link>
 
           {user ? (
@@ -373,11 +435,12 @@ const CustomerCare = () => (
       <h1 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '4rem', color: 'var(--text-main)' }}>How can we help you?</h1>
     </motion.div>
     
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '3rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '3rem', marginBottom: '8rem' }}>
       {[
-        { icon: <MessageCircle size={44} />, title: "Email Support", desc: "support@sketextiles.com", sub: "We reply in 24 hours" },
-        { icon: <Phone size={44} />, title: "Phone Support", desc: "+91 98765 43210", sub: "9 AM - 9 PM IST" },
-        { icon: <MapPin size={44} />, title: "Visit Store", desc: "123 Cloth Street, Anna Salai", sub: "Chennai, Tamil Nadu" }
+        { icon: <MessageCircle size={44} />, title: "Email Support", desc: "sketestilesreadymades@gmail.com", sub: "We reply in 24 hours" },
+        { icon: <Phone size={44} />, title: "Phone Support", desc: "+91 9629218964", sub: "Alt: 8807708964, 7904565456" },
+        { icon: <MapPin size={44} />, title: "Visit Store", desc: "Thiruvalam, Vellore", sub: "Tamil Nadu - 632515" },
+        { icon: <Rocket size={44} />, title: "Store Timing", desc: "9:00 AM - 9:30 PM", sub: "Monday - Sunday" }
       ].map((item, i) => (
         <motion.div 
           key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
@@ -390,6 +453,23 @@ const CustomerCare = () => (
         </motion.div>
       ))}
     </div>
+
+    <section style={{ textAlign: 'left', maxWidth: '800px', margin: '0 auto' }}>
+        <h2 style={{ fontSize: '2.5rem', marginBottom: '3rem', textAlign: 'center' }}>Frequently Asked Questions</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {[
+                { q: "What is your return policy?", a: "We offer a 7-day easy return policy for unwashed and unused items in their original packaging. Please keep the invoice for verification." },
+                { q: "How long does shipping take?", a: "Standard shipping takes 3-5 business days. Express shipping is available for major cities and takes 1-2 business days." },
+                { q: "Do you offer international shipping?", a: "Currently, we ship within India only. We are planning to expand our reach internationally very soon!" },
+                { q: "How do I take care of pure silk sarees?", a: "We recommend dry cleaning only for all our pure silk collections to maintain the zari and fabric integrity." }
+            ].map((faq, index) => (
+                <div key={index} className="glass" style={{ padding: '2rem', borderRadius: '24px' }}>
+                    <h4 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}><Zap size={18} color="var(--primary)" /> {faq.q}</h4>
+                    <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>{faq.a}</p>
+                </div>
+            ))}
+        </div>
+    </section>
   </div>
 );
 
@@ -417,6 +497,7 @@ const AppContent = () => {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/invoice/:orderId?" element={<InvoicePage />} />
           <Route path="/login" element={<Auth />} />
           <Route path="/signup" element={<Auth isSignup />} />
@@ -435,8 +516,10 @@ const AppContent = () => {
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.1), transparent)' }} />
         <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '5rem' }}>
           <div>
-            <h2 style={{ color: 'var(--primary)', marginBottom: '2rem', fontSize: '2rem', fontWeight: 900 }}>SKE Textiles</h2>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '2' }}>Textile heritage meets modern readymade elegance. Every fabric tells a story of craftsmanship.</p>
+            <h2 style={{ color: 'var(--primary)', marginBottom: '1.5rem', fontSize: '2.5rem', fontWeight: 900 }}>SKE Textiles</h2>
+            <p style={{ color: 'var(--text-main)', fontWeight: 600, marginBottom: '0.5rem' }}>Thiruvalam, Vellore, TN - 632515</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>Mon-Sun: 9:00 AM - 9:30 PM</p>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.8' }}>Textile heritage meets modern premium wear. Every fabric tells a story of craftsmanship.</p>
           </div>
           <div>
             <h4 style={{ marginBottom: '2rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.8rem', color: 'var(--text-main)' }}>Discovery</h4>
@@ -445,6 +528,9 @@ const AppContent = () => {
               <li>New Arrivals</li>
               <li>Boutique Pieces</li>
               <li>Gift Experience</li>
+              <li style={{ marginTop: '1rem', borderTop: '1px solid rgba(124, 58, 237, 0.1)', paddingTop: '1rem' }}>
+                <a href="https://ske-textiles.netlify.app/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 800 }}>Visit Old Website</a>
+              </li>
             </ul>
           </div>
           <div>
@@ -467,8 +553,26 @@ const AppContent = () => {
         </div>
         <div className="container" style={{ marginTop: '8rem', paddingTop: '3rem', borderTop: '1px solid rgba(124, 58, 237, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 700 }}>
           <p>© 2026 SKE TEXTILES. WOVEN FOR EXCELLENCE.</p>
-          <div style={{ display: 'flex', gap: '2.5rem' }}>
-             <span>INSTAGRAM</span> <span>TWITTER</span> <span>LINKEDIN</span>
+          <div style={{ display: 'flex', gap: '1.2rem', alignItems: 'center' }}>
+             {[
+               { icon: <InstagramIcon size={18} />, url: "#" },
+               { icon: <FacebookIcon size={18} />, url: "#" },
+               { icon: <TwitterIcon size={18} />, url: "#" },
+               { icon: <LinkedinIcon size={18} />, url: "#" }
+             ].map((soc, i) => (
+               <motion.a 
+                 key={i} href={soc.url} 
+                 whileHover={{ y: -5, scale: 1.1 }}
+                 style={{ 
+                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                   width: '38px', height: '38px', borderRadius: '50%',
+                   background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(124, 58, 237, 0.1)',
+                   color: 'var(--primary)', transition: 'all 0.3s'
+                 }}
+               >
+                 {soc.icon}
+               </motion.a>
+             ))}
           </div>
         </div>
       </footer>

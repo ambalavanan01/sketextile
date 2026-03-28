@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useProduct } from '../context/ProductContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShoppingBag, Trash2, ArrowLeft, CreditCard, Banknote, CheckCircle, Package, Truck, Eye } from 'lucide-react';
+import { ShoppingBag, Trash2, ArrowLeft, CreditCard, Banknote, CheckCircle, Package, Truck, Eye, ShoppingCart } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const CartPage = () => {
   const { cart, removeFromCart, getCartTotals } = useProduct();
@@ -203,23 +204,46 @@ export const OrdersPage = () => {
 
               {/* Enhanced Order Tracking Timeline */}
               {order.status !== 'refunded' && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '2.5rem 2rem', position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: '20px', left: '5%', right: '5%', height: '4px', background: 'var(--border)', zIndex: 0 }}></div>
-                  <div style={{ position: 'absolute', top: '20px', left: '5%', right: '5%', height: '4px', background: 'var(--primary)', zIndex: 0, width: order.status === 'delivered' ? '100%' : (order.status === 'in_transit' ? '50%' : '0%'), transition: 'width 0.5s' }}></div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: '0.8rem' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle size={22} /></div>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Confirmed</span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: '0.8rem' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: (order.status === 'in_transit' || order.status === 'delivered') ? 'var(--primary)' : 'white', border: '3px solid var(--primary)', color: (order.status === 'in_transit' || order.status === 'delivered') ? 'white' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Truck size={22} /></div>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Dispatched</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, gap: '0.8rem' }}>
-                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: order.status === 'delivered' ? 'var(--primary)' : 'white', border: '3px solid var(--primary)', color: order.status === 'delivered' ? 'white' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={22} /></div>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Delivered</span>
+                <div style={{ margin: '3rem 0', padding: '0 1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', position: 'relative' }}>
+                    {/* Progress Background Line */}
+                    <div style={{ position: 'absolute', top: '22px', left: '0', right: '0', height: '4px', background: 'var(--bg-main)', zIndex: 0, borderRadius: '10px' }}></div>
+                    {/* Active Progress Line */}
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ 
+                        width: order.status === 'delivered' ? '100%' : (order.status === 'in_transit' ? '50%' : '0%') 
+                      }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      style={{ position: 'absolute', top: '22px', left: '0', height: '4px', background: 'var(--primary)', zIndex: 0, borderRadius: '10px', boxShadow: '0 0 15px rgba(124, 58, 237, 0.4)' }}
+                    ></motion.div>
+                    
+                    {[
+                      { label: 'Confirmed', status: 'confirmed', icon: <CheckCircle size={20} /> },
+                      { label: 'Processing', status: 'confirmed', icon: <Package size={20} /> },
+                      { label: 'In Transit', status: 'in_transit', icon: <Truck size={20} /> },
+                      { label: 'Delivered', status: 'delivered', icon: <ShoppingBag size={20} /> }
+                    ].map((step, idx) => {
+                      const isCompleted = order.status === 'delivered' || 
+                                        (order.status === 'in_transit' && idx <= 2) || 
+                                        (order.status === 'confirmed' && idx <= 1);
+                      return (
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, position: 'relative', width: '80px' }}>
+                          <div style={{ 
+                            width: '48px', height: '48px', borderRadius: '50%', 
+                            background: isCompleted ? 'var(--primary)' : 'white', 
+                            color: isCompleted ? 'white' : 'var(--text-muted)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: `3px solid ${isCompleted ? 'var(--primary)' : 'var(--bg-main)'}`,
+                            boxShadow: isCompleted ? '0 10px 20px -5px rgba(124, 58, 237, 0.4)' : 'none',
+                            transition: 'all 0.4s ease'
+                          }}>
+                            {step.icon}
+                          </div>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, marginTop: '1rem', color: isCompleted ? 'var(--text-main)' : 'var(--text-muted)' }}>{step.label}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
