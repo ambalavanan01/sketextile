@@ -148,7 +148,7 @@ const generateSKEInvoice = (order) => {
   doc.setTextColor(138, 158, 196);
   doc.text('TEXTILES & READYMADES', 15, 28);
   doc.text('Thiruvalam, Vellore, TN - 632515', 15, 34);
-  doc.text('GSTIN: 33AADCS9999Q1ZX  |  Tel: +91 9629218964', 15, 39);
+  doc.text('GSTIN: 33CFTPD0429Q1Z2  |  Tel: +91 9629218964', 15, 39);
   doc.text('sketestilesreadymades@gmail.com', 15, 44);
 
   // Invoice title
